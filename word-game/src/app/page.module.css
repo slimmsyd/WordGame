@@ -135,3 +135,57 @@
   font-size: 0.9rem;
   opacity: 0.8;
 }
+
+.clickableWord {
+  cursor: pointer;
+  text-decoration: underline;
+  color: var(--primary);
+  font-weight: bold;
+}
+
+.definitionBox {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 500px;
+  background: var(--background);
+  border: 1px solid rgba(128, 128, 128, 0.2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  z-index: 100;
+  animation: slideUp 0.3s ease-out;
+}
+
+.definitionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 1.2rem;
+  border-bottom: 1px solid rgba(128, 128, 128, 0.1);
+  padding-bottom: 10px;
+}
+
+.definitionHeader button {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 5px;
+  color: var(--text-secondary);
+}
+
+@keyframes slideUp {
+  from { transform: translate(-50%, 100%); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .definitionBox {
+    background: #1a1a1a;
+    border-color: #333;
+  }
+}

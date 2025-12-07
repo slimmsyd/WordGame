@@ -25,6 +25,8 @@ export default function Home() {
   const [startCell, setStartCell] = useState<Cell | null>(null);
   const [loading, setLoading] = useState(true);
   const [foundCells, setFoundCells] = useState<Set<string>>(new Set());
+  const [definition, setDefinition] = useState<{ word: string; text: string } | null>(null);
+  const [defining, setDefining] = useState(false);
 
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -52,8 +54,30 @@ export default function Home() {
     fetchWords();
   }, []);
 
-  const addToLog = (message: string) => {
-    setLog((prev) => [`${new Date().toLocaleTimeString()}: ${message}`, ...prev]);
+  const fetchDefinition = async (word: string) => {
+    setDefining(true);
+    setDefinition({ word, text: "Loading definition..." });
+    try {
+      const res = await fetch('/api/define-word', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ word })
+      });
+      const data = await res.json();
+      if (data.definition) {
+        setDefinition({ word, text: data.definition });
+      } else {
+        setDefinition({ word, text: "Could not define this word." });
+      }
+    } catch (e) {
+      setDefinition({ word, text: "Error fetching definition." });
+    } finally {
+      setDefining(false);
+    }
+  };
+
+  const addToLog = (word: string) => {
+    setLog((prev) => [`You found "${word}"!`, ...prev]);
   };
 
   const getCellFromElement = (element: Element): Cell | null => {
@@ -166,10 +190,10 @@ export default function Home() {
 
     if (wordsToFind.includes(selectedWord) && !foundWords.includes(selectedWord)) {
       setFoundWords(prev => [...prev, selectedWord]);
-      addToLog(`Found "${selectedWord}"!`);
+      addToLog(selectedWord);
     } else if (wordsToFind.includes(reversedWord) && !foundWords.includes(reversedWord)) {
       setFoundWords(prev => [...prev, reversedWord]);
-      addToLog(`Found "${reversedWord}"!`);
+      addToLog(reversedWord);
     }
 
     setSelection([]);
@@ -224,7 +248,8 @@ export default function Home() {
 
     if (found) {
       setFoundWords(prev => [...prev, found]);
-      addToLog(`Found "${found}"!`);
+      setFoundWords(prev => [...prev, found]);
+      addToLog(found);
       setFoundCells(prev => {
         const newSet = new Set(prev);
         selection.forEach(id => newSet.add(id));
@@ -281,11 +306,36 @@ export default function Home() {
           <div className={styles.logTitle}>Game Log</div>
           <div className={styles.logEntries}>
             {log.length === 0 && <div className={styles.logEntry}>Drag across letters to find words!</div>}
-            {log.map((entry, i) => (
-              <div key={i} className={styles.logEntry}>{entry}</div>
-            ))}
+            {log.map((entry, i) => {
+              const match = entry.match(/"([^"]+)"/);
+              const word = match ? match[1] : null;
+              return (
+                <div key={i} className={styles.logEntry}>
+                  {word ? (
+                    <>
+                      You found <span
+                        className={styles.clickableWord}
+                        onClick={() => fetchDefinition(word)}
+                      >
+                        "{word}"
+                      </span>!
+                    </>
+                  ) : entry}
+                </div>
+              );
+            })}
           </div>
         </div>
+
+        {definition && (
+          <div className={styles.definitionBox}>
+            <div className={styles.definitionHeader}>
+              <strong>{definition.word}</strong>
+              <button onClick={() => setDefinition(null)}>×</button>
+            </div>
+            <p>{definition.text}</p>
+          </div>
+        )}
 
       </main>
     </div>

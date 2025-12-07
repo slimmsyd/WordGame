@@ -39,14 +39,16 @@ export default function Home() {
         const data = await res.json();
         const words = data.words || ["NEXTJS", "REACT", "VERCEL"]; // Fallback
         setWordsToFind(words);
-        const newGrid = generateGrid(GRID_SIZE, words);
+        const { grid: newGrid, placedWords } = generateGrid(GRID_SIZE, words);
+        setWordsToFind(placedWords);
         setGrid(newGrid);
       } catch (error) {
         console.error(error);
         // Fallback
         const fallback = ["NEXTJS", "REACT", "API", "ERROR"];
-        setWordsToFind(fallback);
-        setGrid(generateGrid(GRID_SIZE, fallback));
+        const { grid: fallbackGrid, placedWords: fallbackPlaced } = generateGrid(GRID_SIZE, fallback);
+        setWordsToFind(fallbackPlaced);
+        setGrid(fallbackGrid);
       } finally {
         setLoading(false);
       }
@@ -344,7 +346,7 @@ export default function Home() {
 
 // ------ LOGIC HELPERS ------
 
-function generateGrid(size: number, words: string[]): Grid {
+function generateGrid(size: number, words: string[]): { grid: Grid, placedWords: string[] } {
   // Initialize empty grid
   const grid: Cell[][] = Array.from({ length: size }, (_, y) =>
     Array.from({ length: size }, (_, x) => ({
@@ -355,9 +357,13 @@ function generateGrid(size: number, words: string[]): Grid {
     }))
   );
 
+  const placedWords: string[] = [];
+
   // Place words
   for (const word of words) {
-    placeWord(grid, word, size);
+    if (placeWord(grid, word, size)) {
+      placedWords.push(word);
+    }
   }
 
   // Fill remaining
@@ -370,10 +376,10 @@ function generateGrid(size: number, words: string[]): Grid {
     }
   }
 
-  return grid;
+  return { grid, placedWords };
 }
 
-function placeWord(grid: Grid, word: string, size: number) {
+function placeWord(grid: Grid, word: string, size: number): boolean {
   let placed = false;
   let attempts = 0;
 
@@ -403,6 +409,7 @@ function placeWord(grid: Grid, word: string, size: number) {
     }
     attempts++;
   }
+  return placed;
 }
 
 function canPlace(grid: Grid, word: string, row: number, col: number, dx: number, dy: number, size: number) {

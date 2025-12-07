@@ -1,0 +1,137 @@
+.page {
+  --background: #fafafa;
+  --foreground: #171717;
+  --primary: #0070f3;
+  --selection: rgba(0, 112, 243, 0.3);
+  --found: rgba(0, 200, 83, 0.2);
+  --found-stroke: #00c853;
+
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  padding: 20px;
+  font-family: var(--font-geist-sans);
+  background-color: var(--background);
+  color: var(--foreground);
+  touch-action: none; /* Prevent scrolling while dragging on grid */
+}
+
+@media (prefers-color-scheme: dark) {
+  .page {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+    --primary: #3291ff;
+    --selection: rgba(50, 145, 255, 0.3);
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  gap: 20px;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.wordList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+}
+
+.wordItem {
+  padding: 8px 16px;
+  background: rgba(128, 128, 128, 0.1);
+  border-radius: 20px;
+  font-size: 1rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.wordFound {
+  background: var(--found);
+  color: var(--found-stroke);
+  text-decoration: line-through;
+  opacity: 0.8;
+}
+
+.gridContainer {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  max-width: 500px; /* Increased from 400px */
+  background: rgba(128, 128, 128, 0.05);
+  border-radius: 12px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+  margin: 10px 0; /* Add some spacing */
+}
+
+.grid {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  /* Grid template columns/rows will be set inline */
+}
+
+.cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.8rem; /* Increased from 1.5rem */
+  font-weight: bold;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  border: 1px solid rgba(128, 128, 128, 0.1);
+  min-height: 44px; /* Ensure minimum touch target size */
+  transition: background-color 0.1s;
+}
+
+.cell.selected {
+  background-color: var(--selection);
+}
+
+.cell.found {
+  background-color: var(--found);
+  color: var(--found-stroke);
+}
+
+.logContainer {
+  width: 100%;
+  background: rgba(128, 128, 128, 0.05);
+  border-radius: 12px;
+  padding: 15px;
+  margin-top: 20px;
+}
+
+.logTitle {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.logEntries {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.logEntry {
+  font-size: 0.9rem;
+  opacity: 0.8;
+}

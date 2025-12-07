@@ -13,7 +13,7 @@
   font-family: var(--font-geist-sans);
   background-color: var(--background);
   color: var(--foreground);
-  touch-action: none; /* Prevent scrolling while dragging on grid */
+  /* touch-action: none; Removed to allow scrolling on the page itself */
 }
 
 @media (prefers-color-scheme: dark) {

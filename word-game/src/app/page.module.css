@@ -69,11 +69,11 @@
 .gridContainer {
   position: relative;
   width: 100%;
-  aspect-ratio: 1;
+  /* aspect-ratio: 1; Removed to prevent clipping when min-height forces growth */
   max-width: 500px; /* Increased from 400px */
   background: rgba(128, 128, 128, 0.05);
   border-radius: 12px;
-  overflow: hidden;
+  /* overflow: hidden; Removed to allow cells to be fully visible */
   touch-action: none;
   user-select: none;
   margin: 10px 0; /* Add some spacing */
@@ -97,6 +97,7 @@
   user-select: none;
   border: 1px solid rgba(128, 128, 128, 0.1);
   min-height: 44px; /* Ensure minimum touch target size */
+  aspect-ratio: 1; /* Keep cells square-ish */
   transition: background-color 0.1s;
 }
 

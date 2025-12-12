@@ -36,33 +36,45 @@ export default function Home() {
 
   const gridRef = useRef<HTMLDivElement>(null);
 
+  const startNewGame = useCallback(async () => {
+    setLoading(true);
+    // Reset State
+    setFoundWords([]);
+    setLog([]);
+    setSelection([]);
+    setStartCell(null);
+    setFoundCells(new Set());
+    setDefinition(null);
+    setWordLocations([]);
+    // Grid will be overwritten
+
+    try {
+      const res = await fetch('/api/generate-words');
+      if (!res.ok) throw new Error("Failed to fetch");
+      const data = await res.json();
+      const words = data.words || ["NEXTJS", "REACT", "VERCEL"]; // Fallback
+
+      const { grid: newGrid, placedWords, locations } = generateGrid(GRID_SIZE, words);
+      setWordsToFind(placedWords);
+      setGrid(newGrid);
+      setWordLocations(locations);
+    } catch (error) {
+      console.error(error);
+      // Fallback
+      const fallback = ["NEXTJS", "REACT", "API", "ERROR"];
+      const { grid: fallbackGrid, placedWords: fallbackPlaced, locations: fallbackLocations } = generateGrid(GRID_SIZE, fallback);
+      setWordsToFind(fallbackPlaced);
+      setGrid(fallbackGrid);
+      setWordLocations(fallbackLocations);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   // Initialize Game
   useEffect(() => {
-    const fetchWords = async () => {
-      try {
-        const res = await fetch('/api/generate-words');
-        if (!res.ok) throw new Error("Failed to fetch");
-        const data = await res.json();
-        const words = data.words || ["NEXTJS", "REACT", "VERCEL"]; // Fallback
-        setWordsToFind(words);
-        const { grid: newGrid, placedWords, locations } = generateGrid(GRID_SIZE, words);
-        setWordsToFind(placedWords);
-        setGrid(newGrid);
-        setWordLocations(locations);
-      } catch (error) {
-        console.error(error);
-        // Fallback
-        const fallback = ["NEXTJS", "REACT", "API", "ERROR"];
-        const { grid: fallbackGrid, placedWords: fallbackPlaced, locations: fallbackLocations } = generateGrid(GRID_SIZE, fallback);
-        setWordsToFind(fallbackPlaced);
-        setGrid(fallbackGrid);
-        setWordLocations(fallbackLocations);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchWords();
-  }, []);
+    startNewGame();
+  }, [startNewGame]);
 
   const fetchDefinition = async (word: string) => {
     setDefining(true);
@@ -101,10 +113,6 @@ export default function Home() {
     const dx = current.x - start.x;
     const dy = current.y - start.y;
 
-    // We only allow horizontal, vertical, and diagonal lines
-    // To do this, we check if the angle is roughly correct
-    // Or simpler: force the line to be one of the 8 directions
-
     const steps = Math.max(Math.abs(dx), Math.abs(dy));
     if (steps === 0) return [start.id];
 
@@ -117,15 +125,11 @@ export default function Home() {
       stepX = dx > 0 ? 1 : -1;
       stepY = dy > 0 ? 1 : -1;
     } else if (Math.abs(dx) > Math.abs(dy)) {
-      // Horizontal logic: if dy is small compared to dx, snap to horizontal.
-      // However, standard word search strictly enforces straight lines.
-      // Let's enforce strict 0 or equal abs slope.
+      // Horizontal
       if (dy === 0) {
         stepX = dx > 0 ? 1 : -1;
         stepY = 0;
       } else {
-        // If not perfectly aligned, stick to start cell (or handle visually as invalid)
-        // For better UX, we can try to snap to the closest valid line
         return [start.id];
       }
     } else {
@@ -138,12 +142,7 @@ export default function Home() {
       }
     }
 
-    // Even if we snapped, let's verify exact alignment for strictness or just allow the snap
-    // Implementation: simple bresenham-like for these specific 8 directions
-
-    // Re-check strict alignment for diagonal to be safe if we rely on the else-ifs above
     if (stepX !== 0 && stepY !== 0 && Math.abs(dx) !== Math.abs(dy)) return [start.id];
-
 
     const path: string[] = [];
     let cx = start.x;
@@ -167,7 +166,6 @@ export default function Home() {
       setSelecting(true);
       setStartCell(cell);
       setSelection([cell.id]);
-      // Capture pointer to handle moves outside the initial cell
       (e.target as Element).setPointerCapture(e.pointerId);
     }
   };
@@ -190,7 +188,6 @@ export default function Home() {
     setSelecting(false);
 
     // Check word
-    // Construct word string from selection
     const selectedWord = selection.map(id => {
       const [y, x] = id.split("-").map(Number);
       return grid[y][x].letter;
@@ -210,34 +207,15 @@ export default function Home() {
     setStartCell(null);
   };
 
-  // Helper to check if a cell is selected or found
   const getCellClass = (y: number, x: number) => {
     const id = `${y}-${x}`;
     if (selection.includes(id)) return `${styles.cell} ${styles.selected}`;
-
-    // Check if this cell is part of any found word? 
-    // This is trickier because we need to know WHICH cells formed the word.
-    // For a simple version, we won't highlight found words on the grid PERMANENTLY 
-    // unless we store the coordinate paths of found words.
-    // Let's improve this: store found paths.
-
     if (isCellFound(id)) return `${styles.cell} ${styles.found}`;
-
     return styles.cell;
   };
 
-  // To highlight found words on the grid, we need to store their paths or search for them again.
-  // Simplification: We will just check if the letter matches vaguely? No, that's bad.
-  // Let's rely on the user finding them. 
-  // Better improvement: Store found ranges. But for now, let's ship the core loop.
-  // Actually, users want to see the words crossed out on the grid too usually.
-
-  // Let's add a quick state for foundCells
-  // State moved to top
-
   const isCellFound = (id: string) => foundCells.has(id);
 
-  // Update handlePointerUp to save found cells
   const handlePointerUpWithSave = (e: React.PointerEvent) => {
     if (!selecting) return;
     setSelecting(false);
@@ -258,7 +236,6 @@ export default function Home() {
 
     if (found) {
       setFoundWords(prev => [...prev, found]);
-      // setFoundWords(prev => [...prev, found]); // Removed duplicate call
       addToLog(found);
       setFoundCells(prev => {
         const newSet = new Set(prev);
@@ -276,9 +253,7 @@ export default function Home() {
     const allFoundWords = new Set(foundWords);
 
     wordLocations.forEach(loc => {
-      // Add all paths to found cells
       loc.path.forEach(cellId => allFoundCells.add(cellId));
-      // Add all words to found words
       allFoundWords.add(loc.word);
     });
 
@@ -291,6 +266,26 @@ export default function Home() {
     <div className={styles.page}>
       <main className={styles.main}>
         <div className={styles.title}>Word Search</div>
+
+        <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
+          <button
+            onClick={startNewGame}
+            disabled={loading}
+            style={{
+              padding: '8px 16px',
+              backgroundColor: '#0070f3',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              marginBottom: '10px'
+            }}
+          >
+            {loading ? 'Generating...' : 'Start New Game'}
+          </button>
+        </div>
 
         <div className={styles.wordList}>
           {loading ? <div>Loading words...</div> : wordsToFind.map(word => (
@@ -308,7 +303,7 @@ export default function Home() {
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUpWithSave}
-          onPointerLeave={handlePointerUpWithSave} // End selection if dragging out too far
+          onPointerLeave={handlePointerUpWithSave}
         >
           <div className={styles.grid} style={{
             gridTemplateColumns: `repeat(${GRID_SIZE}, 1fr)`,
@@ -363,7 +358,6 @@ export default function Home() {
           </div>
         )}
 
-        {/* Debug Button */}
         <div style={{ marginTop: '20px', textAlign: 'center' }}>
           <button
             onClick={handleRevealAll}
@@ -389,7 +383,6 @@ export default function Home() {
 // ------ LOGIC HELPERS ------
 
 function generateGrid(size: number, words: string[]): { grid: Grid, placedWords: string[], locations: WordLocation[] } {
-  // Initialize empty grid
   const grid: Cell[][] = Array.from({ length: size }, (_, y) =>
     Array.from({ length: size }, (_, x) => ({
       letter: '',
@@ -402,7 +395,6 @@ function generateGrid(size: number, words: string[]): { grid: Grid, placedWords:
   const placedWords: string[] = [];
   const locations: WordLocation[] = [];
 
-  // Place words
   for (const word of words) {
     const result = placeWord(grid, word, size);
     if (result.placed) {
@@ -411,7 +403,6 @@ function generateGrid(size: number, words: string[]): { grid: Grid, placedWords:
     }
   }
 
-  // Fill remaining
   const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
@@ -437,7 +428,6 @@ function placeWord(grid: Grid, word: string, size: number): { placed: boolean, p
   ];
 
   while (!placed && attempts < 100) {
-    // Randomly select a direction
     const dir = directions[Math.floor(Math.random() * directions.length)];
     const row = Math.floor(Math.random() * size);
     const col = Math.floor(Math.random() * size);
@@ -457,15 +447,12 @@ function placeWord(grid: Grid, word: string, size: number): { placed: boolean, p
 }
 
 function canPlace(grid: Grid, word: string, row: number, col: number, dx: number, dy: number, size: number) {
-  // Calculate the end position
   const endRow = row + dy * (word.length - 1);
   const endCol = col + dx * (word.length - 1);
 
-  // Check if the word fits within the grid bounds
   if (endRow < 0 || endRow >= size || endCol < 0 || endCol >= size) return false;
   if (row < 0 || row >= size || col < 0 || col >= size) return false;
 
-  // Check if we can place each letter
   for (let i = 0; i < word.length; i++) {
     const cell = grid[row + i * dy][col + i * dx];
     if (cell.letter && cell.letter !== word[i]) return false;

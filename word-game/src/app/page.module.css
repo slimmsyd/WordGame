@@ -96,9 +96,10 @@
   cursor: pointer;
   user-select: none;
   border: 1px solid rgba(128, 128, 128, 0.1);
-  min-height: 44px; /* Ensure minimum touch target size */
+  /* min-height removed to allow scaling down on small screens */
   aspect-ratio: 1; /* Keep cells square-ish */
   transition: background-color 0.1s;
+  font-size: clamp(0.8rem, 4vw, 1.8rem); /* Responsive font size */
 }
 
 .cell.selected {

@@ -40,6 +40,18 @@ export default function Home() {
   const [elapsedTime, setElapsedTime] = useState(0);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [gameComplete, setGameComplete] = useState(false);
+  const [showTip, setShowTip] = useState(false);
+  const [currentTip, setCurrentTip] = useState('');
+
+  // Fun facts about brain benefits
+  const brainTips = [
+    "🧠 Did you know? Playing word games trains your Prefrontal Cortex in inhibition. You're training your brain to ignore irrelevant data. In an age of digital distraction, the ability to focus on one specific pattern amidst noise is a critical 'system' upgrade!",
+    "🔥 Fun fact: Word searches activate your brain's pattern recognition circuits, the same ones used for problem-solving and creativity!",
+    "⚡ Brain boost: Searching for words releases dopamine each time you find one, creating a positive feedback loop that strengthens neural pathways!",
+    "💪 Mental gym: Word puzzles increase neuroplasticity - your brain's ability to form new connections and adapt!",
+    "🎯 Focus training: This game strengthens your selective attention - the ability to concentrate on what matters while filtering distractions!",
+    "✨ Cognitive upgrade: Regular word game play has been linked to improved memory, vocabulary, and processing speed!"
+  ];
 
   // Original state
   const [grid, setGrid] = useState<Grid>([]);
@@ -324,6 +336,10 @@ export default function Home() {
     if (inputName.trim()) {
       saveUser(inputName.trim());
       setUsername(inputName.trim());
+      // Show a random brain tip
+      const randomTip = brainTips[Math.floor(Math.random() * brainTips.length)];
+      setCurrentTip(randomTip);
+      setShowTip(true);
     }
   };
 
@@ -552,6 +568,48 @@ export default function Home() {
             Cheat: Reveal All Words
           </button>
         </div>
+
+        {/* Brain Tip Tooltip */}
+        {showTip && (
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            maxWidth: '350px',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '16px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.3)',
+            zIndex: 1000,
+            animation: 'slideIn 0.4s ease-out'
+          }}>
+            <button
+              onClick={() => setShowTip(false)}
+              style={{
+                position: 'absolute',
+                top: '8px',
+                right: '10px',
+                background: 'none',
+                border: 'none',
+                color: 'white',
+                fontSize: '1.2rem',
+                cursor: 'pointer',
+                opacity: 0.8
+              }}
+            >×</button>
+            <div style={{ fontSize: '0.95rem', lineHeight: 1.5, paddingRight: '20px' }}>
+              {currentTip}
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+        `}</style>
 
       </main>
     </div>

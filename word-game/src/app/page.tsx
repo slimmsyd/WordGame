@@ -20,7 +20,28 @@ type WordLocation = {
   path: string[];
 };
 
+// LocalStorage helpers
+const getUser = () => typeof window !== 'undefined' ? localStorage.getItem('wordgame_user') : null;
+const saveUser = (name: string) => localStorage.setItem('wordgame_user', name);
+const getBestTime = () => {
+  const t = typeof window !== 'undefined' ? localStorage.getItem('wordgame_best') : null;
+  return t ? parseInt(t) : null;
+};
+const saveBestTime = (time: number) => {
+  const best = getBestTime();
+  if (!best || time < best) localStorage.setItem('wordgame_best', time.toString());
+};
+
 export default function Home() {
+  // Login & Timer state
+  const [username, setUsername] = useState<string | null>(null);
+  const [inputName, setInputName] = useState('');
+  const [timerActive, setTimerActive] = useState(false);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [bestTime, setBestTime] = useState<number | null>(null);
+  const [gameComplete, setGameComplete] = useState(false);
+
+  // Original state
   const [grid, setGrid] = useState<Grid>([]);
   const [wordsToFind, setWordsToFind] = useState<string[]>([]);
   const [foundWords, setFoundWords] = useState<string[]>([]);
@@ -35,6 +56,34 @@ export default function Home() {
   const [wordLocations, setWordLocations] = useState<WordLocation[]>([]);
 
   const gridRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Load user on mount
+  useEffect(() => {
+    const saved = getUser();
+    if (saved) setUsername(saved);
+    setBestTime(getBestTime());
+  }, []);
+
+  // Timer logic
+  useEffect(() => {
+    if (timerActive && !gameComplete) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime(t => t + 1);
+      }, 1000);
+    }
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
+  }, [timerActive, gameComplete]);
+
+  // Check game completion
+  useEffect(() => {
+    if (wordsToFind.length > 0 && foundWords.length === wordsToFind.length && timerActive) {
+      setTimerActive(false);
+      setGameComplete(true);
+      saveBestTime(elapsedTime);
+      setBestTime(getBestTime());
+    }
+  }, [foundWords, wordsToFind, timerActive, elapsedTime]);
 
   const startNewGame = useCallback(async () => {
     setLoading(true);
@@ -46,6 +95,9 @@ export default function Home() {
     setFoundCells(new Set());
     setDefinition(null);
     setWordLocations([]);
+    setElapsedTime(0);
+    setGameComplete(false);
+    setTimerActive(false); // Timer is optional - user starts it
     // Grid will be overwritten
 
     try {
@@ -262,10 +314,136 @@ export default function Home() {
     addToLog("Revealed all words!");
   };
 
+  const formatTime = (s: number) => {
+    const min = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${min}:${sec.toString().padStart(2, '0')}`;
+  };
+
+  const handleLogin = () => {
+    if (inputName.trim()) {
+      saveUser(inputName.trim());
+      setUsername(inputName.trim());
+    }
+  };
+
+  // Login Screen
+  if (!username) {
+    return (
+      <div className={styles.page}>
+        <main className={styles.main}>
+          <div className={styles.title}>Word Search</div>
+          <div style={{
+            background: 'rgba(128,128,128,0.1)',
+            padding: '2rem',
+            borderRadius: '12px',
+            textAlign: 'center',
+            maxWidth: '300px'
+          }}>
+            <p style={{ marginBottom: '1rem' }}>Enter your name to play:</p>
+            <input
+              type="text"
+              value={inputName}
+              onChange={e => setInputName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
+              placeholder="Your name"
+              style={{
+                padding: '10px',
+                fontSize: '1rem',
+                borderRadius: '8px',
+                border: '1px solid #ccc',
+                width: '100%',
+                marginBottom: '1rem'
+              }}
+            />
+            <button
+              onClick={handleLogin}
+              style={{
+                padding: '10px 24px',
+                backgroundColor: '#0070f3',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontSize: '1rem',
+                fontWeight: 'bold'
+              }}
+            >
+              Start Playing
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <div className={styles.title}>Word Search</div>
+
+        {/* User info & Timer bar */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+          background: 'rgba(128,128,128,0.1)',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          marginBottom: '10px',
+          flexWrap: 'wrap',
+          gap: '10px'
+        }}>
+          <span>👋 {username}</span>
+
+          {/* Timer section */}
+          {!timerActive && !gameComplete ? (
+            <button
+              onClick={() => { setElapsedTime(0); setTimerActive(true); }}
+              style={{
+                padding: '8px 16px',
+                backgroundColor: '#ff9800',
+                color: 'white',
+                border: 'none',
+                borderRadius: '20px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                fontWeight: 'bold'
+              }}
+            >
+              ⏱️ Start Timed Mode
+            </button>
+          ) : (
+            <span style={{
+              fontSize: '1.5rem',
+              fontWeight: 'bold',
+              fontFamily: 'monospace',
+              color: gameComplete ? '#00c853' : '#ff9800'
+            }}>
+              ⏱️ {formatTime(elapsedTime)}
+            </span>
+          )}
+
+          {bestTime && <span style={{ fontSize: '0.85rem', opacity: 0.7 }}>🏆 Best: {formatTime(bestTime)}</span>}
+        </div>
+
+        {/* Game Complete Modal */}
+        {gameComplete && (
+          <div style={{
+            background: 'linear-gradient(135deg, #00c853, #0070f3)',
+            color: 'white',
+            padding: '20px',
+            borderRadius: '12px',
+            textAlign: 'center',
+            marginBottom: '10px',
+            width: '100%'
+          }}>
+            <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>🎉 You Won!</div>
+            <div>Time: {formatTime(elapsedTime)}</div>
+            {bestTime === elapsedTime && <div style={{ marginTop: '5px' }}>🏆 New Best Time!</div>}
+          </div>
+        )}
 
         <div style={{ marginBottom: '1rem', textAlign: 'center' }}>
           <button

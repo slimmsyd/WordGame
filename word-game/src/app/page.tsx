@@ -15,6 +15,11 @@ type Cell = {
 
 type Grid = Cell[][];
 
+type WordLocation = {
+  word: string;
+  path: string[];
+};
+
 export default function Home() {
   const [grid, setGrid] = useState<Grid>([]);
   const [wordsToFind, setWordsToFind] = useState<string[]>([]);
@@ -27,6 +32,7 @@ export default function Home() {
   const [foundCells, setFoundCells] = useState<Set<string>>(new Set());
   const [definition, setDefinition] = useState<{ word: string; text: string } | null>(null);
   const [defining, setDefining] = useState(false);
+  const [wordLocations, setWordLocations] = useState<WordLocation[]>([]);
 
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -39,16 +45,18 @@ export default function Home() {
         const data = await res.json();
         const words = data.words || ["NEXTJS", "REACT", "VERCEL"]; // Fallback
         setWordsToFind(words);
-        const { grid: newGrid, placedWords } = generateGrid(GRID_SIZE, words);
+        const { grid: newGrid, placedWords, locations } = generateGrid(GRID_SIZE, words);
         setWordsToFind(placedWords);
         setGrid(newGrid);
+        setWordLocations(locations);
       } catch (error) {
         console.error(error);
         // Fallback
         const fallback = ["NEXTJS", "REACT", "API", "ERROR"];
-        const { grid: fallbackGrid, placedWords: fallbackPlaced } = generateGrid(GRID_SIZE, fallback);
+        const { grid: fallbackGrid, placedWords: fallbackPlaced, locations: fallbackLocations } = generateGrid(GRID_SIZE, fallback);
         setWordsToFind(fallbackPlaced);
         setGrid(fallbackGrid);
+        setWordLocations(fallbackLocations);
       } finally {
         setLoading(false);
       }
@@ -250,7 +258,7 @@ export default function Home() {
 
     if (found) {
       setFoundWords(prev => [...prev, found]);
-      setFoundWords(prev => [...prev, found]);
+      // setFoundWords(prev => [...prev, found]); // Removed duplicate call
       addToLog(found);
       setFoundCells(prev => {
         const newSet = new Set(prev);
@@ -261,6 +269,22 @@ export default function Home() {
 
     setSelection([]);
     setStartCell(null);
+  };
+
+  const handleRevealAll = () => {
+    const allFoundCells = new Set(foundCells);
+    const allFoundWords = new Set(foundWords);
+
+    wordLocations.forEach(loc => {
+      // Add all paths to found cells
+      loc.path.forEach(cellId => allFoundCells.add(cellId));
+      // Add all words to found words
+      allFoundWords.add(loc.word);
+    });
+
+    setFoundCells(allFoundCells);
+    setFoundWords(Array.from(allFoundWords));
+    addToLog("Revealed all words!");
   };
 
   return (
@@ -339,6 +363,24 @@ export default function Home() {
           </div>
         )}
 
+        {/* Debug Button */}
+        <div style={{ marginTop: '20px', textAlign: 'center' }}>
+          <button
+            onClick={handleRevealAll}
+            style={{
+              padding: '10px 20px',
+              backgroundColor: '#333',
+              color: 'white',
+              border: 'none',
+              borderRadius: '5px',
+              cursor: 'pointer',
+              fontSize: '14px'
+            }}
+          >
+            Cheat: Reveal All Words
+          </button>
+        </div>
+
       </main>
     </div>
   );
@@ -346,7 +388,7 @@ export default function Home() {
 
 // ------ LOGIC HELPERS ------
 
-function generateGrid(size: number, words: string[]): { grid: Grid, placedWords: string[] } {
+function generateGrid(size: number, words: string[]): { grid: Grid, placedWords: string[], locations: WordLocation[] } {
   // Initialize empty grid
   const grid: Cell[][] = Array.from({ length: size }, (_, y) =>
     Array.from({ length: size }, (_, x) => ({
@@ -358,11 +400,14 @@ function generateGrid(size: number, words: string[]): { grid: Grid, placedWords:
   );
 
   const placedWords: string[] = [];
+  const locations: WordLocation[] = [];
 
   // Place words
   for (const word of words) {
-    if (placeWord(grid, word, size)) {
+    const result = placeWord(grid, word, size);
+    if (result.placed) {
       placedWords.push(word);
+      locations.push({ word, path: result.path });
     }
   }
 
@@ -376,23 +421,19 @@ function generateGrid(size: number, words: string[]): { grid: Grid, placedWords:
     }
   }
 
-  return { grid, placedWords };
+  return { grid, placedWords, locations };
 }
 
-function placeWord(grid: Grid, word: string, size: number): boolean {
+function placeWord(grid: Grid, word: string, size: number): { placed: boolean, path: string[] } {
   let placed = false;
   let attempts = 0;
+  let path: string[] = [];
 
-  // All 8 directions: horizontal, vertical, and 4 diagonals (including reverse directions)
+  // Restricted to readable directions: Horizontal (Right), Vertical (Down), Diagonal (Down-Right)
   const directions = [
     { dx: 1, dy: 0 },   // horizontal right
-    { dx: -1, dy: 0 },  // horizontal left
     { dx: 0, dy: 1 },   // vertical down
-    { dx: 0, dy: -1 },  // vertical up
     { dx: 1, dy: 1 },   // diagonal down-right
-    { dx: -1, dy: -1 }, // diagonal up-left
-    { dx: 1, dy: -1 },  // diagonal up-right
-    { dx: -1, dy: 1 },  // diagonal down-left
   ];
 
   while (!placed && attempts < 100) {
@@ -403,13 +444,16 @@ function placeWord(grid: Grid, word: string, size: number): boolean {
 
     if (canPlace(grid, word, row, col, dir.dx, dir.dy, size)) {
       for (let i = 0; i < word.length; i++) {
-        grid[row + i * dir.dy][col + i * dir.dx].letter = word[i];
+        const r = row + i * dir.dy;
+        const c = col + i * dir.dx;
+        grid[r][c].letter = word[i];
+        path.push(`${r}-${c}`);
       }
       placed = true;
     }
     attempts++;
   }
-  return placed;
+  return { placed, path };
 }
 
 function canPlace(grid: Grid, word: string, row: number, col: number, dx: number, dy: number, size: number) {
